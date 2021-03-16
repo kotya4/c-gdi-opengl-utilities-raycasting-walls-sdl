@@ -6,3 +6,4 @@ __pycache__/
 *.py[cod]
 passwords.py
 vk_config.v2.json
+*.exe
