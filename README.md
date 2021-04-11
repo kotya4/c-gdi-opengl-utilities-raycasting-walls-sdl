@@ -1,1 +1,3 @@
-Здесь расположены НЕ все проекты, написанные на С и С++, а только те, что были написаны позднее середины лета 2020 года. Остальные лежат в соответствующих архивных репозиториях: https://github.com/sluchaynayakotya/oldproj-20200610 и https://github.com/sluchaynayakotya/oldproj-20190707
+Also see:
+https://github.com/sluchaynayakotya/oldproj-20200610
+https://github.com/sluchaynayakotya/oldproj-20190707
