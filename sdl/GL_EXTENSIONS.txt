@@ -1,4 +1,4 @@
-Output from glGetString ( GL_EXTENSIONS ) :
+Output from glGetString ( GL_EXTENSIONS ) of my SiS Mirage
 
 GL_ARB_depth_texture
 GL_ARB_multisample

@@ -6,18 +6,29 @@
 #include <gl/glew.h>
 #include <gl/glu.h>
 #include <gl/gl.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#include "SDL.h"
+#include "SDL_ttf.h"
+#include "SDL_opengl.h"
+#include "ffqube.h"
+#include "text.h"
+
+typedef int bool_t;
+enum { false = 0, true = 1 };
+
+#define nextpow2_u32( x ) ( 1 << ( 32 - __builtin_clz ( x - 1 ) ) )
 
 #define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 400
-
-void draw_rotating_quad ( GLfloat, GLfloat, GLfloat );
 
 int
 main ( int argc, char **args ) {
   if ( SDL_Init ( SDL_INIT_VIDEO ) < 0 ) {
     fprintf (stderr, "SDL_Init: %s\n", SDL_GetError () );
+    return 1;
+  }
+
+  if ( TTF_Init () < 0 ) {
+    fprintf (stderr, "TTF_Init: %s\n", SDL_GetError () );
     return 1;
   }
 
@@ -63,7 +74,8 @@ main ( int argc, char **args ) {
 
   printf ( "GLEW_VERSION: %s\n", glewGetString ( GLEW_VERSION ) );
 
-  // Tip: My GL_VERSION is 1.14.0, but glewIsSupported says GL_VERSION_1_4 is not supported.
+  // Tip: On my SiS Mirage GL_VERSION is 1.14.0, tho
+  //      glewIsSupported says GL_VERSION_1_4 is not supported.
 
   if ( glewIsSupported ( "GL_VERSION_1_3" ) ) {
     printf ( "glewIsSupported: GL_VERSION_1_3 supported\n" );
@@ -77,19 +89,53 @@ main ( int argc, char **args ) {
     printf ( "glewIsSupported: GL_VERSION_1_4 NOT supported\n" );
   }
 
-  // Set up scene
+  // TTF text to GL texture
 
-  glEnable ( GL_DEPTH_TEST );
+  TTF_Font *font = TTF_OpenFont ( "RobotoMono-Regular.ttf", 20 );
+  if ( font == NULL ) {
+    fprintf ( stderr, "TTF_OpenFont: %s\n", SDL_GetError () );
+    return 1;
+  }
+
+  SDL_Surface *sur = TTF_RenderText_Blended ( font, "Hello, Wordl!", ( SDL_Color ){ 64, 128, 255 } );
+  if ( sur == NULL ) {
+    fprintf ( stderr, "TTF_RenderText_Blended: %s\n", SDL_GetError () );
+    return 1;
+  }
+
+  const int tex_w = nextpow2_u32 ( sur->w );
+  const int tex_h = nextpow2_u32 ( sur->h );
+  if ( sur->w != tex_w || sur->h != tex_h ) {
+    // Surface size need to be power of two ( GL_VERSION < 3 ),
+    // so we create new surface with proper size and copy pixels
+    // from old surface.
+    const int depth = 32;
+    const SDL_PixelFormatEnum pf = SDL_PIXELFORMAT_RGBA32;
+    SDL_Surface *new_sur = SDL_CreateRGBSurfaceWithFormat ( 0, tex_w, tex_h, depth, pf );
+    if ( new_sur == NULL ) {
+      fprintf ( stderr, "SDL_CreateRGBSurfaceWithFormat: %s\n", SDL_GetError () );
+      return 1;
+    }
+    if ( SDL_BlitSurface ( sur, &sur->clip_rect, new_sur, &new_sur->clip_rect ) < 0 ) {
+      fprintf ( stderr, "SDL_BlitSurface: %s\n", SDL_GetError () );
+      return 1;
+    }
+    // Swap pointers
+    SDL_FreeSurface ( sur );
+    sur = new_sur;
+  }
+
+  GLuint tex = TEXT_create_texture ( sur );
+
+  // Setup
 
   glViewport ( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT );
   glClearColor ( 0.5f, 0.5f, 0.5f, 0.f );
 
-  int is_running = 1;
-  int is_fullscreen = 0;
+  // Main Loop
 
-  GLfloat angle_x = 0.f;
-  GLfloat angle_y = 0.f;
-  GLfloat angle_z = 0.f;
+  bool_t is_running = true;
+  bool_t is_fullscreen = false;
 
   while ( is_running ) {
 
@@ -103,7 +149,7 @@ main ( int argc, char **args ) {
       if ( event.type == SDL_KEYDOWN ) {
         // Escape
         if ( event.key.keysym.sym == SDLK_ESCAPE ) {
-          is_running = 0;
+          is_running = false;
         }
         // F key
         else if ( event.key.keysym.sym == 'f' ) {
@@ -119,7 +165,7 @@ main ( int argc, char **args ) {
       // Quit
 
       else if ( event.type == SDL_QUIT ) {
-        is_running = 0;
+        is_running = false;
       }
     }
 
@@ -127,81 +173,20 @@ main ( int argc, char **args ) {
 
     glClear ( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    angle_x += 0.10f * 10;
-    angle_y -= 0.05f * 10;
-    angle_z += 0.15f * 10;
-    draw_rotating_quad ( angle_x, angle_y, angle_z );
+    FFQUBE_render ();
 
-    glFlush ();
+    TEXT_render ( tex, sur->w, sur->h, 30, 30, SCREEN_WIDTH, SCREEN_HEIGHT );
 
     SDL_GL_SwapWindow ( window );
   }
 
   // Destroy
+
+  glDeleteTextures ( 1, &tex );
+  SDL_FreeSurface ( sur );
+  TTF_CloseFont ( font );
   SDL_GL_DeleteContext ( context );
   SDL_DestroyWindow ( window );
   SDL_Quit ();
   return 0;
-}
-
-
-void
-draw_rotating_quad ( GLfloat rx, GLfloat ry, GLfloat rz ) {
-  glMatrixMode ( GL_PROJECTION );
-  glLoadIdentity ();
-  gluPerspective ( 45.0, 1.0, 0.1, 1000.0 );
-
-  glMatrixMode ( GL_MODELVIEW );
-  glLoadIdentity ();
-  glTranslatef ( 0.0f, 0.0f, -7.0f );
-  glRotatef ( rx, 1.f, 0.f, 0.f );
-  glRotatef ( ry, 0.f, 1.f, 0.f );
-  glRotatef ( rz, 0.f, 0.f, 1.f );
-
-  // Define vertices in counter-clockwise (CCW) order with normal pointing out
-  glBegin ( GL_QUADS );
-  // Top face (y = 1.0f)
-  // Green
-  glColor3f ( 0.0f, 1.0f, 0.0f );
-  glVertex3f ( +1.0f, +1.0f, -1.0f );
-  glVertex3f ( -1.0f, +1.0f, -1.0f );
-  glVertex3f ( -1.0f, +1.0f, +1.0f );
-  glVertex3f ( +1.0f, +1.0f, +1.0f );
-  // Bottom face (y = -1.0f)
-  // Orange
-  glColor3f (1.0f, 0.5f, 0.0f );
-  glVertex3f ( +1.0f, -1.0f, +1.0f );
-  glVertex3f ( -1.0f, -1.0f, +1.0f );
-  glVertex3f ( -1.0f, -1.0f, -1.0f );
-  glVertex3f ( +1.0f, -1.0f, -1.0f );
-  // Front face  (z = 1.0f)
-  // Red
-  glColor3f ( 1.0f, 0.0f, 0.0f );
-  glVertex3f ( +1.0f, +1.0f, +1.0f );
-  glVertex3f ( -1.0f, +1.0f, +1.0f );
-  glVertex3f ( -1.0f, -1.0f, +1.0f );
-  glVertex3f ( +1.0f, -1.0f, +1.0f );
-  // Back face (z = -1.0f)
-  // Yellow
-  glColor3f ( 1.0f, 1.0f, 0.0f );
-  glVertex3f ( +1.0f, -1.0f, -1.0f );
-  glVertex3f ( -1.0f, -1.0f, -1.0f );
-  glVertex3f ( -1.0f, +1.0f, -1.0f );
-  glVertex3f ( +1.0f, +1.0f, -1.0f );
-  // Left face (x = -1.0f)
-  // Blue
-  glColor3f ( 0.0f, 0.0f, 1.0f );
-  glVertex3f ( -1.0f, +1.0f, +1.0f );
-  glVertex3f ( -1.0f, +1.0f, -1.0f );
-  glVertex3f ( -1.0f, -1.0f, -1.0f );
-  glVertex3f ( -1.0f, -1.0f, +1.0f );
-  // Right face (x = 1.0f)
-  // Magenta
-  glColor3f ( 1.0f, 0.0f, 1.0f );
-  glVertex3f ( +1.0f, +1.0f, -1.0f );
-  glVertex3f ( +1.0f, +1.0f, +1.0f );
-  glVertex3f ( +1.0f, -1.0f, +1.0f );
-  glVertex3f ( +1.0f, -1.0f, -1.0f );
-  // End of drawing color-cube
-  glEnd ();
 }
