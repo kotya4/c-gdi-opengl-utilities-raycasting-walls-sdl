@@ -127,6 +127,9 @@ main ( int argc, char **args ) {
 
   GLuint tex = TEXT_create_texture ( sur );
 
+  SDL_FreeSurface ( sur );
+  TTF_CloseFont ( font );
+
   // Setup
 
   glViewport ( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -175,7 +178,7 @@ main ( int argc, char **args ) {
 
     FFQUBE_render ();
 
-    TEXT_render ( tex, sur->w, sur->h, 30, 30, SCREEN_WIDTH, SCREEN_HEIGHT );
+    TEXT_render ( tex, tex_w, tex_h, 30, 30, SCREEN_WIDTH, SCREEN_HEIGHT );
 
     SDL_GL_SwapWindow ( window );
   }
@@ -183,8 +186,7 @@ main ( int argc, char **args ) {
   // Destroy
 
   glDeleteTextures ( 1, &tex );
-  SDL_FreeSurface ( sur );
-  TTF_CloseFont ( font );
+
   SDL_GL_DeleteContext ( context );
   SDL_DestroyWindow ( window );
   SDL_Quit ();
