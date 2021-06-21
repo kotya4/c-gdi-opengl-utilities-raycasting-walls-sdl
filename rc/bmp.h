@@ -21,6 +21,8 @@ BMP_read ( BMP_obj_t *o, const char *filename ) {
   fread ( o->info, sizeof ( unsigned char ), 54, f ); // read the 54-byte header
   o->width = *( int* ) &o->info [ 18 ];
   o->height = *( int* ) &o->info [ 22 ]; // can be -1
+  // Width and height must be power of 2, nor file format
+  // will be incompatible with reading algorithm used here.
   o->length = 3 * o->width * o->height; // allocate 3 bytes per pixel
   o->bgr = malloc ( o->length * sizeof ( unsigned char ) );
   fread ( o->bgr, sizeof ( unsigned char ), o->length, f ); // read the rest of the data at once

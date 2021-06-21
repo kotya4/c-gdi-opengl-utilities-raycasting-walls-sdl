@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "SDL.h"
 #include "rc.h"
+#include "map.h"
 
 
 typedef struct Game {
@@ -177,12 +178,22 @@ init ( game_t *g ) {
 int
 setup ( game_t *g ) {
 
-  RC_fill_map_1 ( &g->map );
+  // RC_fill_map_1 ( &g->map );
+  MAP_map_t map;
+  MAP_gen ( &map );
+  g->map.array = malloc ( map.length * sizeof *g->map.array );
+  g->map.width = map.width;
+  g->map.height = map.height;
+  for ( int i = 0; i < map.length; ++i ) {
+    g->map.array[ i ] = map.array[ i ] == 1;
+  }
+  MAP_kill ( &map );
+  
 
   g->camera.x = 5;
   g->camera.y = 5;
 
-  g->collision_radius = 0.5;
+  g->collision_radius = 0.25;
 
   g->kb_look_speed = 0.001;
   g->m_look_speed  = 0.005;
@@ -346,7 +357,7 @@ render ( game_t *g ) {
     g->fps_value = g->elapsed == 0 ? 0 : 1000 / g->elapsed;
     g->fps_timer = 0;
   }
-  char fps_value_str [ 100 ];
+  char fps_value_str [ 10 ];
   sprintf ( fps_value_str, "fps: %d", g->fps_value );
   RC_draw_text ( &g->display, &g->font, fps_value_str, 0, CANVAS_HEIGHT - 12 );
 
