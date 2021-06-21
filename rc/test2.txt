@@ -1,0 +1,101 @@
+
+#include <math.h>
+
+
+double color_thres(BMP_rgb24_t c1, BMP_rgb24_t c2){
+  double tres = abs(c1.r - c2.r) / 256.0
+              + abs(c1.g - c2.g) / 256.0
+              + abs(c1.b - c2.b) / 256.0 ;
+  tres /= 3;
+  return tres;
+}
+
+
+
+void
+test__BMP_indexed ( const char *bmp_filename ) {
+  BMP_obj_t bmp;
+  if ( BMP_read ( &bmp, bmp_filename ) < 0 ) {
+    printf ( "BMP_read: cannot read file %s\n", bmp_filename );
+    return;
+  }
+  
+  BMP_indexed_t o;
+  const int status = BMP_init_indexed ( &o, &bmp, 1000 );
+  BMP_kill(&bmp);
+  if ( status < 0 ) {
+    printf ( "BMP_init_indexed: provided pallete size was overloaded\n" );
+    return;
+  }
+  
+  if ( o.palette.length > 64 ) {
+    printf ( "\nPalette size bigger than 64 (%d)\n", o.palette.length );
+  }
+  
+  const char dict64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  
+  // TODO: only quads for now
+  
+  int w = o.width >> 1;
+  int h = o.height >> 1;
+  
+  // TODO: test tl, but must be picked that has less errors
+  
+  double blerrs = 0;
+  double brerrs = 0;
+  double trerrs = 0;
+ 
+  
+  for ( int y = 0; y < h; ++y ) {
+    for ( int x = 0; x < w; ++x ) {
+      
+      int tl = o.array[(y+0) * o.width + (x+0)];
+      int bl = o.array[(y+h) * o.width + (x+0)];
+      int tr = o.array[(y+0) * o.width + (x+w)];
+      int br = o.array[(y+h) * o.width + (x+w)];
+      
+      // TODO: applying linear transformations (rot + mir)
+      
+      // other color spaces can give more natural results
+      BMP_rgb24_t tlc = o.palette.colors[tl];
+      BMP_rgb24_t blc = o.palette.colors[bl];
+      BMP_rgb24_t trc = o.palette.colors[tr];
+      BMP_rgb24_t brc = o.palette.colors[br];
+      
+      // between 0 and 1
+      double blthres = color_thres(tlc, blc);
+      double trthres = color_thres(tlc, trc);
+      double brthres = color_thres(tlc, brc);
+
+      // TODO: we can use mask against single value to
+      // store errors and use that mask for restore
+      // image using lower resolution copy.
+    
+      blerrs += blthres;
+      brerrs += brthres;
+      trerrs += trthres;
+      
+    }
+  }
+  
+  // err betwen 0 and 1
+  blerrs /= w * h;
+  brerrs /= w * h;
+  trerrs /= w * h;
+  
+  // if err bigger than some const then there is no patterns
+  // else subimage can be replaced with pattern with some
+  // errors.
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  BMP_kill_indexed ( &o );
+}

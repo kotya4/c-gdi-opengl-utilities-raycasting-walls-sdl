@@ -104,8 +104,167 @@ double *f ( float *a ) {
 }
 
 
+
+
+
+
+
+
+
+typedef struct {
+  int a;
+  char b;
+  double c;
+} mystruct;
+
+
+#include <string.h>
+
+
+void
+drfhstr(const int a) {
+  printf("%d\n",a);
+}
+// void
+// drfhstr(const int a, const int b) {
+  // printf("%d %d\n",a, b);
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#include <math.h>
+#include <stdlib.h>
+
 int
 main () {
+  
+  
+  typedef struct st777 {
+    int a;
+    char b;
+    double c;
+  } st777_t;
+  
+  st777_t starr[5] = {
+    { 666, 123, 0.56 },
+    { 777, 231, 0.76 },
+    { 888, 212, 0.86 },
+    { 999, 213, 0.96 },
+    { 111,  98, 0.16 },
+  };
+  
+  st777_t *stptr = starr;
+  for ( int i = 0; i < 5; ++i ) {
+    printf("%d %d %f\n", stptr->a, stptr->b, stptr->c);
+    stptr++; // OK
+  }
+  
+  
+  
+  return 0;
+  
+  
+  
+  
+  
+  // const char path1[] = "p1";
+  // const char path2[] = "p2";
+  
+  // int num = 10;
+  
+  // char *filenames[ 16 ] = malloc ( num * 16 * sizeof ( char ) );
+
+
+  // for ( int i = 0; i < num; ++i ) {
+    // for ( int k = 0; k < 16; ++k ) {
+      // filenames[ i ][ k ] = 'a' + k;
+    // }
+    // printf ( "%s\n", filenames[ i ] );
+  // }
+  
+
+  // printf ( "%d\n", sizeof ( *filenames ) );
+  
+  
+  // free ( filenames );
+  return 0;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  #define nextpow2_u32( x ) ( 1 << ( 32 - __builtin_clz ( x - 1 ) ) )
+  
+  int abcd = 32;
+  
+  int efg = log2( nextpow2_u32 ( abcd ) );
+  
+  printf ( "%d\n", ( int ) ceil ( 0.1 ) ) ;
+  
+  
+  return 0;
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  drfhstr(4);
+  // no overload
+  // drfhstr(4, 6);
+  
+  
+  return 0;
+  
+  mystruct mys = { 666, 111, 1.23 };
+  
+  mystruct mys2;
+  mys2 = mys;
+  
+  mystruct mys3 = { 665, 111, 1.23 };
+  mystruct mys4 = { 666, 111, 1.23 };
+  
+  printf("%d\n",memcmp(&mys, &mys2, sizeof(mystruct))); // 0
+  printf("%d\n",memcmp(&mys, &mys3, sizeof(mystruct))); // 1
+  printf("%d\n",memcmp(&mys, &mys4, sizeof(mystruct))); // -1 (assume doubles are not the same)
+
+  return 0;
+
+
+
+
+
+
+
+
+
+
 
   float aa = 12.56f;
 
