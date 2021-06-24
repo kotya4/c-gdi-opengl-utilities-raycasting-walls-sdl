@@ -1,29 +1,21 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
-
-typedef struct UTILS_Vector {
-  void *array;
-  int length;
-} UTILS_vector_t;
-
-int
-UTILS_vector_init ( UTILS_vector_t *o ) {
-  o->array = NULL;
-  o->length = 0;
-}
-
-int
-UTILS_vector_push ( UTILS_vector_t *o, const void *v ) {
-  
-}
+#include "vector.h"
 
 
-int
-UTILS_vector_pop () {
+#define max(x, y) ( x > y ? x : y )
+#define min(y, x) ( x < y ? x : y )
+#define nextpow2_u32( x ) ( 1 << ( 32 - __builtin_clz ( x - 1 ) ) )
 
-}
+
+
+
+
+
 
 
 #endif // UTILS_H

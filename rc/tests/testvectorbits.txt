@@ -1,0 +1,42 @@
+
+  vectorbit_t v = { NULL, 0, 0, 0 };
+  
+  #define fs 7
+  #define bits 6
+  int vals[fs];
+  srand( time(0) );
+  for ( int i = 0; i < fs; ++i ) {
+    int val = rand() % bits;
+    vectorbit_push_many ( &v, val, bits );
+    vals[fs - i - 1] = val;
+  }
+  for ( int i = 0; i < fs; ++i ) {
+    printf("%d ", vals[i]);
+  }
+  printf ( "\n" );
+
+  
+  
+  size_t sl = v.byteindex + 1;
+  vectorbit_t s = { v.array, sl, sl - 1, VECTORBIT_BITSLEN ( fs, bits ) };
+  
+  int scapacity = s.capacity;
+  int sbyteindex = s.byteindex;
+  int sbitslength = s.bitslength;
+  
+  for ( int i = 0; i < fs; ++i ) {
+    int val = vectorbit_pop_many ( &s, bits );
+    printf ( "%d ", val );
+  }
+  printf ( "\n" );
+  
+  printf ( "v capacity: %d\n", v.capacity );
+  printf ( "v byteindex: %d\n", v.byteindex );
+  printf ( "v bitslength: %d\n", v.bitslength );
+  
+  printf ( "s capacity: %d\n", scapacity );
+  printf ( "s byteindex: %d\n", sbyteindex );
+  printf ( "s bitslength: %d\n", sbitslength );
+  
+  free(v.array);
+  free(s.array);

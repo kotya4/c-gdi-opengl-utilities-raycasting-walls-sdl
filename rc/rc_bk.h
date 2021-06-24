@@ -9,9 +9,6 @@
 #include <float.h> // DBL_MAX
 #include "bmp/bmp.h"
 #include "bmp/bmp_font.h"
-#include "bmp/bmp_indexed.h"
-#include "texture.h"
-#include "map.h"
 
 
 #define max(x, y) ( x > y ? x : y )
@@ -63,13 +60,11 @@ RC_clear_display ( RC_display_t *d ) {
 ///////////////////////////////////////
 
 
-// typedef struct RC_Map {
-  // uint16_t width;
-  // uint16_t height;
-  // uint8_t *array;
-// } RC_map_t;
-
-typedef MAP_map_t RC_map_t;
+typedef struct RC_Map {
+  uint16_t width;
+  uint16_t height;
+  uint8_t *array;
+} RC_map_t;
 
 
 void
@@ -104,36 +99,50 @@ RC_kill_map ( RC_map_t *m ) {
 
 
 bool
-RC_map_solid_at ( const RC_map_t *m, size_t x, size_t y ) {
-  if ( x >= m->width || y >= m->height ) return true;
-  return ( m->array[ y * m->width + x ] >> 4 ) & 1;
+RC_map_solid_at ( const RC_map_t *m, int x, int y ) {
+  if ( 0 <= x && x < m->width && 0 <= y && y < m->height )
+    return m->array[ m->width * y + x ] == 1
+    ||     m->array[ m->width * y + x ] == 5;
+  else
+    return true;
 }
 
 
 bool
-RC_map_transparent_at ( const RC_map_t *m, size_t x, size_t y ) {
-  if ( x >= m->width || y >= m->height ) return false;
-  return ( m->array[ y * m->width + x ] >> 5 ) & 1;
+RC_map_transparent_at ( const RC_map_t *m, int x, int y ) {
+  if ( 0 <= x && x < m->width && 0 <= y && y < m->height )
+    return m->array[ m->width * y + x ] == 5;
+  else
+    return false;
 }
 
 
 int
-RC_map_wall_texture_at ( const RC_map_t *m, size_t x, size_t y ) {
-  if ( x >= m->width || y >= m->height ) return 0;
-  return ( m->array[ y * m->width + x ] >> 6 ) & 0xf;
+RC_map_wall_texture_at ( const RC_map_t *m, int x, int y ) {
+  if ( 0 <= x && x < m->width && 0 <= y && y < m->height )
+    return m->array[ m->width * y + x ];
+  else
+    return 0;
 }
 
 
 int
-RC_map_floor_texture_at ( const RC_map_t *m, size_t x, size_t y ) {
-  return RC_map_wall_texture_at ( m, x, y );
+RC_map_floor_texture_at ( const RC_map_t *m, int x, int y ) {
+  return 2;
+  if ( 0 <= x && x < ( *m ).width && 0 <= y && y < ( *m ).height )
+    return ( *m ).array [ ( *m ).width * y + x ];
+  else
+    return 0;
 }
 
 
 int
 RC_map_ceiling_texture_at ( const RC_map_t *m, int x, int y ) {
-  if ( x >= m->width || y >= m->height ) return 0;
-  return ( m->array[ y * m->width + x ] >> 10 ) & 0xf;
+  return 3;
+  if ( 0 <= x && x < ( *m ).width && 0 <= y && y < ( *m ).height )
+    return ( *m ).array [ ( *m ).width * y + x ];
+  else
+    return 0;
 }
 
 
@@ -213,12 +222,11 @@ RC_kill_textures ( const int length, BMP_obj_t *textures ) {
 ///////////////////////////////////////
 
 
-typedef struct DepthStack {
+typedef struct Depthstack {
   bool side;
   int map_x;
   int map_y;
 } depthstack_t;
-
 
 
 void
@@ -226,7 +234,7 @@ RC_cast_walls (
   RC_display_t *display,
   const RC_map_t *map,
   const RC_camera_t *camera,
-  const texture_t *textures )
+  const BMP_obj_t *textures )
 {
   const int distance_max = 15;
   const double brightness = ( double ) distance_max + 1;
@@ -302,8 +310,7 @@ RC_cast_walls (
 
       // Texture
       const int texture_index = RC_map_wall_texture_at ( map, map_x, map_y );
-      // const BMP_obj_t *texture = 
-      const BMP_indexed_t *texture = textures[ texture_index ].ibmp;
+      const BMP_obj_t *texture = &textures [ texture_index ];
 
       // How much to increase the texture coordinate per screen pixel?
       const double texture_step = ( double ) texture->height / strip_height;
@@ -332,14 +339,9 @@ RC_cast_walls (
         texture_pos += texture_step;
 
         // Apply pixels to the display.
-        // const uint8_t b = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 0 ] );
-        // const uint8_t g = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 1 ] );
-        // const uint8_t r = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 2 ] );
-        
-        BMP_rgb24_t *rgb24 = BMP_indexed_rgb24_at ( texture, tx, ty );
-        const uint8_t b = rgb24->b;
-        const uint8_t g = rgb24->g;
-        const uint8_t r = rgb24->r;
+        const uint8_t b = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 0 ] );
+        const uint8_t g = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 1 ] );
+        const uint8_t r = ( uint8_t ) ( texture->bgr [ ( texture->width * ty + tx ) * 3 + 2 ] );
         if ( b == 255 && g == 255 && r == 0 ) continue; // alpha
         
         const uint32_t rgb
@@ -365,7 +367,7 @@ RC_cast_surfaces (
   RC_display_t *display,
   const RC_map_t *map,
   const RC_camera_t *camera,
-  const texture_t *textures )
+  const BMP_obj_t *textures )
 {
   const bool ignore_ceiling = false;
   const bool ignore_floor = false;
@@ -416,28 +418,18 @@ RC_cast_surfaces (
 
         // Texture
         const int texture_index = RC_map_ceiling_texture_at ( map, cell_x, cell_y );
-        // const BMP_obj_t *texture = &textures [ texture_index ];
-        const BMP_indexed_t *texture = textures[ texture_index ].ibmp;
-        
+        const BMP_obj_t *texture = &textures [ texture_index ];
+
         // Gets the texture coordinate from the fractional part.
         const int tx = ( int ) ( texture->width  * ( floor_x - cell_x ) ) & ( texture->width  - 1 );
         const int ty = ( int ) ( texture->height * ( floor_y - cell_y ) ) & ( texture->height - 1 );
 
         // Apply pixels to the display.
-        // const int ti = ( texture->width * ty + tx ) * 3;
-        // const uint8_t b = ( uint8_t ) ( texture->bgr [ ti + 0 ] * fade );
-        // const uint8_t g = ( uint8_t ) ( texture->bgr [ ti + 1 ] * fade );
-        // const uint8_t r = ( uint8_t ) ( texture->bgr [ ti + 2 ] * fade );
-        
-        const BMP_rgb24_t *rgb24 = BMP_indexed_rgb24_at ( texture, tx, ty );
-        const uint8_t b = rgb24->b;
-        const uint8_t g = rgb24->g;
-        const uint8_t r = rgb24->r;
-        // TODO: alpha
-        const uint32_t rgb
-          = ( ( int ) ( r  * fade ) << 0x10 )
-          | ( ( int ) ( g  * fade ) << 0x08 )
-          | ( ( int ) ( b  * fade ) << 0x00 );
+        const int ti = ( texture->width * ty + tx ) * 3;
+        const uint8_t b = ( uint8_t ) ( texture->bgr [ ti + 0 ] * fade );
+        const uint8_t g = ( uint8_t ) ( texture->bgr [ ti + 1 ] * fade );
+        const uint8_t r = ( uint8_t ) ( texture->bgr [ ti + 2 ] * fade );
+        const uint32_t rgb = ( r << 0x10 ) | ( g << 0x08 ) | ( b << 0x00 );
         display->array [ display->width * y + x ] = rgb;
       }
 
@@ -445,30 +437,18 @@ RC_cast_surfaces (
 
         // Texture
         const int texture_index = RC_map_floor_texture_at ( map, cell_x, cell_y );
-        // const BMP_obj_t *texture = &textures [ texture_index ];
-        const BMP_indexed_t *texture = textures[ texture_index ].ibmp;
+        const BMP_obj_t *texture = &textures [ texture_index ];
 
         // Gets the texture coordinate from the fractional part.
         const int tx = ( int ) ( texture->width  * ( floor_x - cell_x ) ) & ( texture->width  - 1 );
         const int ty = ( int ) ( texture->height * ( floor_y - cell_y ) ) & ( texture->height - 1 );
 
         // Apply pixels to the display.
-        // const int ti = ( texture->width * ty + tx ) * 3;
-        // const uint8_t b = ( uint8_t ) ( texture->bgr [ ti + 0 ] * fade );
-        // const uint8_t g = ( uint8_t ) ( texture->bgr [ ti + 1 ] * fade );
-        // const uint8_t r = ( uint8_t ) ( texture->bgr [ ti + 2 ] * fade );
-        // const uint32_t rgb = ( r << 0x10 ) | ( g << 0x08 ) | ( b << 0x00 );
-        
-        const BMP_rgb24_t *rgb24 = BMP_indexed_rgb24_at ( texture, tx, ty );
-        const uint8_t b = rgb24->b;
-        const uint8_t g = rgb24->g;
-        const uint8_t r = rgb24->r;
-        // TODO: alpha
-        const uint32_t rgb
-          = ( ( int ) ( r * fade ) << 0x10 )
-          | ( ( int ) ( g * fade ) << 0x08 )
-          | ( ( int ) ( b * fade ) << 0x00 );
-        
+        const int ti = ( texture->width * ty + tx ) * 3;
+        const uint8_t b = ( uint8_t ) ( texture->bgr [ ti + 0 ] * fade );
+        const uint8_t g = ( uint8_t ) ( texture->bgr [ ti + 1 ] * fade );
+        const uint8_t r = ( uint8_t ) ( texture->bgr [ ti + 2 ] * fade );
+        const uint32_t rgb = ( r << 0x10 ) | ( g << 0x08 ) | ( b << 0x00 );
         display->array [ display->width * ( display->height - y - 1 ) + x ] = rgb;
       }
     }

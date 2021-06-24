@@ -3,7 +3,6 @@
 
 #include <time.h> // time
 #include <stdlib.h> // rand
-#include "texture.h"
 
 
 #define max(x, y) ( x > y ? x : y )
@@ -23,21 +22,6 @@ typedef struct MAP_Map {
   int height;
   int length;
 } MAP_map_t;
-
-
-// [ceiling texture:16][floor/wall texture:16][solid:2][type:16]
-#define MAP_BTYPE_VOID        0
-#define MAP_BTYPE_WALL        1
-#define MAP_BTYPE_DOOR        2
-#define MAP_BTYPE_OPENDOOR    3
-#define MAP_BTYPE_OPENINGDOOR 5
-#define MAP_BTYPE_REDDOOR     6
-#define MAP_BTYPE_BLUEDOOR    7
-#define MAP_BTYPE_GREENDOOR   8
-#define MAP_BTYPE_CYANDOOR    9
-#define MAP_BSOLID_FALSE      0
-#define MAP_BSOLID_TRUE       1
-
 
 
 void
@@ -169,9 +153,6 @@ MAP_cross ( MAP_map_t *o, const int type ) {
   const int w = o->width >> 1;
   const int h = o->height >> 1;
   
-  const int t1 = rand() % 16;
-  const int t2 = rand() % 16;
-  
   for ( int y = 0; y < o->height; ++y ) {
     o->array [ y * o->width + w ] = MAP_TYPE_WALL;
   }
@@ -248,8 +229,6 @@ MAP_cross ( MAP_map_t *o, const int type ) {
 #define MAP_MIRROR_MIRROR 0b10
 void
 MAP_mirror ( MAP_map_t *o, const int mx, const int my ) {
-  // const int t1 = rand() % 16;
-  // const int t2 = rand() % 16;
   for ( int y = 0; y < o->height >> 1; ++y ) {
     int y0 = y;
     if ( my & MAP_MIRROR_PASTE ) y0 = ( o->height >> 1 ) + y;
@@ -259,14 +238,6 @@ MAP_mirror ( MAP_map_t *o, const int mx, const int my ) {
       if ( mx & MAP_MIRROR_PASTE ) x0 = ( o->width >> 1 ) + x;
       if ( mx & MAP_MIRROR_MIRROR ) x0 = o->width - x - 1;
       o->array [ y0 * o->width + x0 ] = o->array [ y * o->width + x ];
-      // change textures
-      // const int tt1 = ( o->array [ y0 * o->width + x0 ] >>  6 ) & 0xf;
-      // const int tt2 = ( o->array [ y0 * o->width + x0 ] >> 10 ) & 0xf;
-      // o->array [ y0 * o->width + x0 ] &= 0xf << 10;
-      // o->array [ y0 * o->width + x0 ] &= 0xf <<  6;
-      // o->array [ y0 * o->width + x0 ] &= 0xf << 10;
-      // o->array [ y0 * o->width + x0 ] |= ( t1 * tt1 % 16 ) <<  6;
-      // o->array [ y0 * o->width + x0 ] |= ( t2 * tt2 % 16 ) << 10;
     }
   }
 }
@@ -323,14 +294,13 @@ MAP_quadmap ( MAP_map_t *o ) {
 
 
 int
-MAP_gen ( MAP_map_t *o, const texture_t *textures, size_t tlength ) {
+MAP_gen ( MAP_map_t *o ) {
   const int width = 9 + ( rand () % 8 << 1 ) + 1;
   const int height = 9 + ( rand () % 8 << 1 ) + 1;
   MAP_init ( o, width, height );
   MAP_fill ( o, MAP_TYPE_VOID, 0, 0, o->width, o->height );
   
-  // if ( rand () % 2 == 0 ) {
-  if ( 0 ) { // TODO: no quadmap for now
+  if ( rand () % 2 == 0 ) {
     MAP_quadmap ( o );
   }
   else {
@@ -339,84 +309,9 @@ MAP_gen ( MAP_map_t *o, const texture_t *textures, size_t tlength ) {
     MAP_rdmaze ( o, 0, 0, o->width, o->height, MAP_RDMAZE_DEPTH, maze_type );
     MAP_borders ( o, MAP_TYPE_WALL );
   }
-  
-  // main textures
-  int t1 = ( rand() % 16 ) <<  6;
-  int t2 = ( rand() % 16 ) << 10;
-  for ( int i = 0; i < o->length; ++i ) {
-    if ( o->array[ i ] == MAP_TYPE_WALL ) {
-      o->array[ i ] = 0; // flush
-      o->array[ i ] |= 0x10; // make solid
-      o->array[ i ] |= MAP_BTYPE_WALL; // make wall
-    }
-    else if ( o->array[ i ] == MAP_TYPE_PASS ) { // can be door
-      o->array[ i ] = 0; // flush
-      int x = i % width;
-      int y = i / width;
-      if ( o->array[ ( y - 1 ) * width + ( x     ) ] & 0xf == 1
-      &&   o->array[ ( y + 1 ) * width + ( x     ) ] & 0xf == 1
-      &&   o->array[ ( y     ) * width + ( x - 1 ) ] & 0xf != 1
-      &&   o->array[ ( y     ) * width + ( x + 1 ) ] & 0xf != 1
-      ||
-           o->array[ ( y - 1 ) * width + ( x     ) ] & 0xf != 1
-      &&   o->array[ ( y + 1 ) * width + ( x     ) ] & 0xf != 1
-      &&   o->array[ ( y     ) * width + ( x - 1 ) ] & 0xf == 1
-      &&   o->array[ ( y     ) * width + ( x + 1 ) ] & 0xf == 1 )
-      {
-        // really can be door
-        o->array[ i ] |= 0x10; // make solid
-        o->array[ i ] |= 0x20; // make transparent
-        o->array[ i ] |= MAP_BTYPE_DOOR; // make door 
-      }
-    }
-    o->array[ i ] |= t1;
-    o->array[ i ] |= t2;
-  }
-  
-  // random quads
-  for ( int i = 0; i < rand() % 10; ++i ) {
-    int x = rand() % width;
-    int y = rand() % height;
-    int w = rand() % width / 2;
-    int h = rand() % height / 2;
-    t1 = ( rand() % 16 ) <<  6;
-    t2 = ( rand() % 16 ) << 10;
-    for ( int yi = y; yi < h + y; ++yi ) {
-      for ( int xi = x; xi < w + x; ++xi ) {
-        o->array[ yi * o->width + xi ] |= t1;
-        o->array[ yi * o->width + xi ] |= t2;
-      }
-    }
-  }
-  
+    
   return 0;
 }
-
-
-// [ceiling texture:16(4)][floor/wall texture:16(4)][transparent:2(1)][solid:2(1)][type:16(4)]
-#define MAP_BTYPE_VOID        0
-#define MAP_BTYPE_WALL        1
-#define MAP_BTYPE_DOOR        2
-#define MAP_BTYPE_OPENDOOR    3
-#define MAP_BTYPE_OPENINGDOOR 5
-// #define MAP_BTYPE_REDDOOR     6
-// #define MAP_BTYPE_BLUEDOOR    7
-// #define MAP_BTYPE_GREENDOOR   8
-// #define MAP_BTYPE_CYANDOOR    9
-
-
-int
-MAP_isempty ( const MAP_type_t v ) {
-  const int type = ( v & 0xf );
-  return type == MAP_BTYPE_VOID;
-}
-
-
-
-
-
-
-
 
 
 #endif // MAP_H

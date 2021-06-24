@@ -1,0 +1,29 @@
+========================================================
+
+THIS PROJECT IS SO DIRTY I CANT TAKE IT ANYMORE,
+SEE " ray " FOR SUCCESSOR OF THIS PROJECT.
+
+========================================================
+
+Pseudo 3d game engine by me ( sluchaynayakotya )
+targeting platform: windows xp, intel pentium III, sis mirrage ( 640x480 ~20fps )
+server graphics: sdl2 ( and maybe pure gdi if i am not lazy )
+client graphics: raycasting\dda, 32bit depthbuffer, valued alpha, mode7 surfaces (osmth)
+
+map is randomly generated using recoursive division algorithm.
+sprites are indexated, colors are transformed into rgb332.
+no need for huffman algorithm because of compression rate:
+~2% for indexed bitmaps, not a big deal. btw ~95% on raw bmp, impressive huh?
+
+
+Some Code Conventions:
+
+Function named <STRUCT>_init[_<TYPE>] must free allocated memory on error.
+Other functions can preserve allocated memory for debugging.
+
+free ( ... ) can be called without checking wether pointer is pointing to allocated memory.
+Althrough after deallocation pointer has to be set to NULL.
+
+Any function returning status must return negative value on error and zero or positive on success.
+
+Namespaces partially fucked up tho so do not mind.

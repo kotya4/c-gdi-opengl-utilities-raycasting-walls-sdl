@@ -105,4 +105,19 @@ BMP_indexed_init ( BMP_indexed_t *o, const BMP_obj_t *bmp, const int max_palette
 }
 
 
+int
+BMP_indexed_rgb_at ( const BMP_indexed_t *o, size_t x, size_t y ) {
+  if ( x >= o->width || y >= o->height ) return 0xff00ff; // pink then err
+  const size_t index = o->array[ y * o->width + x ];
+  const BMP_rgb24_t rgb = o->palette.colors[ index ];
+  return ( rgb.r << 0x10 ) | ( rgb.g << 0x08 ) | ( rgb.b << 0x00 );
+}
+
+BMP_rgb24_t *
+BMP_indexed_rgb24_at ( const BMP_indexed_t *o, size_t x, size_t y ) {
+  if ( x >= o->width || y >= o->height ) return NULL;
+  const size_t index = o->array[ y * o->width + x ];
+  return &o->palette.colors[ index ];
+}
+
 #endif // BMP_INDEXED_H

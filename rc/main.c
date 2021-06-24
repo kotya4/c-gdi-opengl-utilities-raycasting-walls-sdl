@@ -4,6 +4,8 @@
 #include "SDL.h"
 #include "rc.h"
 #include "map.h"
+#include "utils.h"
+#include "bmp_d.h"
 
 
 typedef struct Game {
@@ -42,7 +44,19 @@ typedef struct Game {
 
   BMP_obj_t *textures;
   int textures_length;
-
+  
+  double spritex;
+  double spritey;
+  
+  
+  texture_t *itexs;
+  BMP_indexed_t *ibmps;
+  int ibmps_index;
+  size_t ibmps_length;
+  
+  int map_index;
+  bool map_fromstart;
+  
 } game_t;
 
 
@@ -52,6 +66,7 @@ int listen ( game_t * );
 int process ( game_t * );
 int render ( game_t * );
 int kill ( game_t * );
+int generate_level ( game_t * );
 
 
 int
@@ -93,6 +108,36 @@ main ( int argc, char **args ) {
 
 int
 init ( game_t *g ) {
+  int status;
+  
+  
+  
+  
+  g->ibmps_length = 0;
+  g->ibmps_index = 0;
+  g->ibmps = NULL;
+  status = BMP_d ( &g->ibmps, &g->ibmps_length );
+  if ( status < 0 ) {
+    printf ( "BMP_d: status %d\n", status );
+    return -1;
+  }
+  g->itexs = malloc ( g->ibmps_length * sizeof *g->itexs );
+  for ( int i = 0; i < g->ibmps_length; ++i ) {
+    g->itexs[ i ].ibmp = &g->ibmps[ i ];
+    for ( int k = 0; k < g->ibmps[ i ].palette.length; ++k ) {
+      if ( g->ibmps[ i ].palette.colors[ k ].r == 0 &&
+      g->ibmps[ i ].palette.colors[ k ].g == 0 &&
+      g->ibmps[ i ].palette.colors[ k ].b == 0 )
+      {
+        g->itexs[ i ].transparent = true;
+        break;
+      }
+    }
+  }
+  
+  
+  
+  
   SDL_SetHint ( SDL_HINT_RENDER_DRIVER, "opengl" );
 
   if ( SDL_Init ( SDL_INIT_VIDEO ) < 0 ) {
@@ -151,52 +196,124 @@ init ( game_t *g ) {
 
   g->is_fullscreen = false;
 
-  #define TEXTURES_LENGTH 5
+
+
+
+
+
+  #define TEXTURES_LENGTH 6
   const char textures_paths [ TEXTURES_LENGTH ] [ 128 ] = {
     "tex/empty.bmp",
     "tex/ancientx64.bmp",
     "tex/ancientfloorx64.bmp",
     "tex/ancientceilingx64.bmp",
-    "tex/ancientstatuex64.bmp"
+    "tex/ancientstatuex64.bmp",
+    "tex/voided.bmp"
   };
   BMP_obj_t *textures;
   int err_textures_index;
-  if ( RC_load_textures ( textures_paths, TEXTURES_LENGTH, &textures, &err_textures_index ) < 0 ) {
-    fprintf ( stderr, "RC_load_textures: cannot open %s\n", textures_paths [ err_textures_index ] );
+  status =
+    RC_load_textures
+      ( textures_paths
+      , TEXTURES_LENGTH
+      , &textures
+      , &err_textures_index
+      ) ;
+  if ( status < 0 ) {
+    fprintf
+      ( stderr
+      , "RC_load_textures: cannot open %s\n"
+      , textures_paths [ err_textures_index ]
+      );
     return -1;
   }
   g->textures_length = TEXTURES_LENGTH;
   g->textures = textures;
 
+
+
+
+
+
+  g->spritex = 3;
+  g->spritey = 3;
+  g->map_index = 0;
+  g->map_fromstart = true;
+  
+  double values[ 8 ] = { 0,-1,0,0,0.66,-1,-1,0 };
+  #define FILEPATH "save.txt"
+  FILE *f = fopen ( FILEPATH, "r" );
+  if ( !f ) {
+    printf ( "fopen: cannot open file %s\n", FILEPATH );
+  } else {
+    g->map_fromstart = false;
+    for ( int i = 0; i < 8; ++i ) {
+      #define STR_LEN 64
+      char str[ STR_LEN ];
+      if ( fgets ( str, STR_LEN, f ) == NULL ) break;
+      sscanf ( str, "%lf", &values[ i ] );
+    }
+    fclose ( f );
+  }
+  g->camera.rotation = values[ 0 ];
+  g->camera.directionx = values[ 1 ];
+  g->camera.directiony = values[ 2 ];
+  g->camera.planex = values[ 3 ];
+  g->camera.planey = values[ 4 ];
+  g->camera.x = values[ 5 ];
+  g->camera.y = values[ 6 ];
+  g->map_index = values[ 7 ];
+  
   return 0;
 }
 
 
 
 
+int
+generate_level ( game_t *g ) {
+  srand ( g->map_index );
+  // RC_fill_map_1 ( &g->map );
+  // g->map.array[ g->map.width * g->map.height / 2 + g->map.width / 2 ] = 5;
+  
+  // MAP_map_t map;
+  MAP_gen ( &g->map, g->itexs, g->ibmps_length );
+  // g->map.array = malloc ( map.length * sizeof *g->map.array );
+  // g->map.width = map.width;
+  // g->map.height = map.height;
+  // for ( int i = 0; i < map.length; ++i ) {
+    // g->map.array[ i ] = map.array[ i ] == 1;
+  // }
+  
+  if ( g->map_fromstart ) {  
+    g->map_fromstart = false;
+    // place player
+    g->camera.x = 1;
+    g->camera.y = 1;
+    const size_t offseti = rand();
+    for ( int i = 0; i < g->map.length; ++i ) {
+      if ( MAP_isempty ( g->map.array[ i + offseti ] ) ) {
+        g->camera.x = (i + offseti) / g->map.width + 0.5;
+        g->camera.y = (i + offseti) % g->map.width + 0.5;
+        break;
+      }
+    }
+  }
+  
+}
+
+
+
 
 int
 setup ( game_t *g ) {
-
-  // RC_fill_map_1 ( &g->map );
-  MAP_map_t map;
-  MAP_gen ( &map );
-  g->map.array = malloc ( map.length * sizeof *g->map.array );
-  g->map.width = map.width;
-  g->map.height = map.height;
-  for ( int i = 0; i < map.length; ++i ) {
-    g->map.array[ i ] = map.array[ i ] == 1;
-  }
-  MAP_kill ( &map );
   
-
-  g->camera.x = 5;
-  g->camera.y = 5;
-
+  generate_level ( g );
+  
   g->collision_radius = 0.25;
 
-  g->kb_look_speed = 0.001;
-  g->m_look_speed  = 0.005;
+  g->kb_look_speed = 0.003;
+  g->m_look_speed  = 0.007;
   g->move_speed    = 0.002;
 
   for ( int i = 0; i < 256; ++i ) g->keys [ i ] = false;
@@ -253,10 +370,35 @@ listen ( game_t *g ) {
       g->keys [ ( uint8_t ) event.key.keysym.sym ] = true;
 
       if ( event.key.keysym.sym == SDLK_ESCAPE ) {
-        if ( g->is_mouse_locked == true ) {
-          g->is_mouse_locked = false;
-          SDL_SetRelativeMouseMode ( SDL_FALSE );
+        // if ( g->is_mouse_locked == true ) {
+          // g->is_mouse_locked = false;
+          // SDL_SetRelativeMouseMode ( SDL_FALSE );
+        // }
+        g->is_running = false;
+        
+        double values[ 8 ] = {
+          g->camera.rotation,
+          g->camera.directionx,
+          g->camera.directiony,
+          g->camera.planex,
+          g->camera.planey,
+          g->camera.x,
+          g->camera.y,
+          g->map_index
+        };
+        #define FILEPATH "save.txt"
+        FILE *f = fopen ( FILEPATH, "w" );
+        if ( !f ) {
+          printf ( "fopen: cannot write file %s\n", FILEPATH );
+        } else {
+          for ( int i = 0; i < 8; ++i ) {
+            fprintf ( f, "%f\n", values[ i ] );
+          }
+          fclose ( f );
         }
+        
+        
+        
       }
 
       else if ( event.key.keysym.sym == 'f' ) {
@@ -268,7 +410,32 @@ listen ( game_t *g ) {
             : g->window_flags
         );
       }
+      
+      else if ( event.key.keysym.sym == '1' ) {
+        g->spritex = g->camera.x;
+        g->spritey = g->camera.y;
+      }
+      
+      else if ( event.key.keysym.sym == '2' ) {
+        g->ibmps_index = ( g->ibmps_index + 1 ) % g->ibmps_length;
+      }
+      
+      else if ( event.key.keysym.sym == '3' ) {
+        g->ibmps_index--;
+        if ( g->ibmps_index < 0 ) g->ibmps_index = g->ibmps_length - 1;
+      }
 
+      else if ( event.key.keysym.sym == '4' ) {
+        g->map_index++;
+        g->map_fromstart = true;
+        generate_level ( g );
+      }
+      
+      else if ( event.key.keysym.sym == '5' ) {
+        g->map_index--;
+        g->map_fromstart = true;
+        generate_level ( g );
+      }
     }
 
     else if ( event.type == SDL_KEYUP ) {
@@ -306,21 +473,49 @@ process ( game_t *g ) {
   if ( g->keys [ 'w' ] ) {
     const double new_camera_x = g->camera.x + g->camera.directionx * +g->move_speed * g->elapsed;
     const double new_camera_y = g->camera.y + g->camera.directiony * +g->move_speed * g->elapsed;
-    RC_test_collision ( &g->map, g->collision_radius, new_camera_x, new_camera_y, &g->camera.x, &g->camera.y );
+    RC_test_collision
+      ( &g->map
+      , g->collision_radius
+      , new_camera_x
+      , new_camera_y
+      , &g->camera.x
+      , &g->camera.y
+      );
   } else if ( g->keys [ 's' ] ) {
     const double new_camera_x = g->camera.x + g->camera.directionx * -g->move_speed * g->elapsed;
     const double new_camera_y = g->camera.y + g->camera.directiony * -g->move_speed * g->elapsed;
-    RC_test_collision ( &g->map, g->collision_radius, new_camera_x, new_camera_y, &g->camera.x, &g->camera.y );
+    RC_test_collision
+      ( &g->map
+      , g->collision_radius
+      , new_camera_x
+      , new_camera_y
+      , &g->camera.x
+      , &g->camera.y
+      );
   }
   // strafe left / strafe right
   if ( g->keys [ 'a' ] ) {
     const double new_camera_x = g->camera.x + g->camera.planex * -g->move_speed * g->elapsed;
     const double new_camera_y = g->camera.y + g->camera.planey * -g->move_speed * g->elapsed;
-    RC_test_collision ( &g->map, g->collision_radius, new_camera_x, new_camera_y, &g->camera.x, &g->camera.y );
+    RC_test_collision
+      ( &g->map
+      , g->collision_radius
+      , new_camera_x
+      , new_camera_y
+      , &g->camera.x
+      , &g->camera.y
+      );
   } else if ( g->keys [ 'd' ] ) {
     const double new_camera_x = g->camera.x + g->camera.planex * +g->move_speed * g->elapsed;
     const double new_camera_y = g->camera.y + g->camera.planey * +g->move_speed * g->elapsed;
-    RC_test_collision ( &g->map, g->collision_radius, new_camera_x, new_camera_y, &g->camera.x, &g->camera.y );
+    RC_test_collision 
+      ( &g->map
+      , g->collision_radius
+      , new_camera_x
+      , new_camera_y
+      , &g->camera.x
+      , &g->camera.y
+      );
   }
 
   return 0;
@@ -335,11 +530,24 @@ render ( game_t *g ) {
 
   RC_clear_display ( &g->display );
 
-  RC_cast_surfaces ( &g->display, &g->map, &g->camera, g->textures );
+  RC_cast_surfaces ( &g->display, &g->map, &g->camera, g->itexs );
 
-  RC_cast_walls ( &g->display, &g->map, &g->camera, g->textures );
-
-  RC_cast_sprite ( &g->display, &g->camera, &g->textures[ 4 ], 3, 3 );
+  RC_cast_walls ( &g->display, &g->map, &g->camera, g->itexs );
+  
+  double mindepth = g->display.depthbuffer[ 0 ];
+  double maxdepth = g->display.depthbuffer[ 0 ];
+  for ( int i = 1; i < g->display.length; ++i ) {
+    mindepth = min ( g->display.depthbuffer[ i ], mindepth );
+    maxdepth = max ( g->display.depthbuffer[ i ], maxdepth );
+  }
+  // char minmax_s [ 100 ];
+  // sprintf ( minmax_s, "minmax_s: %f %f", mindepth, maxdepth );
+  // RC_draw_text ( &g->display, &g->font, minmax_s, 0, CANVAS_HEIGHT - 12 * 2 );
+  
+  
+  
+  
+  RC_cast_sprite ( &g->display, &g->camera, &g->textures[ 4 ], g->spritex, g->spritey );
 
 
   // minimap
@@ -360,6 +568,18 @@ render ( game_t *g ) {
   char fps_value_str [ 10 ];
   sprintf ( fps_value_str, "fps: %d", g->fps_value );
   RC_draw_text ( &g->display, &g->font, fps_value_str, 0, CANVAS_HEIGHT - 12 );
+
+
+  // ibmps
+  for ( int y = 0; y < g->ibmps[ g->ibmps_index ].height; ++y )
+    for ( int x = 0; x < g->ibmps[ g->ibmps_index ].width; ++x )
+  {
+    int color = BMP_indexed_rgb_at ( &g->ibmps[ g->ibmps_index ], x, y );
+    g->display.array [ g->display.width * y + ( x + 64 ) ] = color;
+  }
+
+
+
 
   ///////////////////////
   // Flush
@@ -388,6 +608,11 @@ render ( game_t *g ) {
 
 int
 kill ( game_t *g ) {
+
+  for ( int i = 0; i < g->ibmps_length; ++i ) BMP_indexed_kill ( &g->ibmps[ i ] );
+  free ( g->ibmps );
+  free ( g->itexs );
+
 
   BMP_font_kill ( &g->font );
   RC_kill_map ( &g->map );

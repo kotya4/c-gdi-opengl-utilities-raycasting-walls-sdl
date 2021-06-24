@@ -1,7 +1,0 @@
-Conventions:
-
-Function named <STRUCT>_init[_<TYPE>] must free allocated memory on error.
-Other functions can preserve allocated memory for debugging.
-
-free ( ... ) can be called without checking wether pointer is pointing to allocated memory.
-Althrough after deallocation pointer has to be set to NULL.
