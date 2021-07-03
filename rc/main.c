@@ -44,19 +44,19 @@ typedef struct Game {
 
   BMP_obj_t *textures;
   int textures_length;
-  
+
   double spritex;
   double spritey;
-  
-  
+
+
   texture_t *itexs;
   BMP_indexed_t *ibmps;
   int ibmps_index;
   size_t ibmps_length;
-  
+
   int map_index;
   bool map_fromstart;
-  
+
 } game_t;
 
 
@@ -109,10 +109,10 @@ main ( int argc, char **args ) {
 int
 init ( game_t *g ) {
   int status;
-  
-  
-  
-  
+
+
+
+
   g->ibmps_length = 0;
   g->ibmps_index = 0;
   g->ibmps = NULL;
@@ -134,10 +134,10 @@ init ( game_t *g ) {
       }
     }
   }
-  
-  
-  
-  
+
+
+
+
   SDL_SetHint ( SDL_HINT_RENDER_DRIVER, "opengl" );
 
   if ( SDL_Init ( SDL_INIT_VIDEO ) < 0 ) {
@@ -239,7 +239,7 @@ init ( game_t *g ) {
   g->spritey = 3;
   g->map_index = 0;
   g->map_fromstart = true;
-  
+
   double values[ 8 ] = { 0,-1,0,0,0.66,-1,-1,0 };
   #define FILEPATH "save.txt"
   FILE *f = fopen ( FILEPATH, "r" );
@@ -263,7 +263,7 @@ init ( game_t *g ) {
   g->camera.x = values[ 5 ];
   g->camera.y = values[ 6 ];
   g->map_index = values[ 7 ];
-  
+
   return 0;
 }
 
@@ -275,7 +275,7 @@ generate_level ( game_t *g ) {
   srand ( g->map_index );
   // RC_fill_map_1 ( &g->map );
   // g->map.array[ g->map.width * g->map.height / 2 + g->map.width / 2 ] = 5;
-  
+
   // MAP_map_t map;
   MAP_gen ( &g->map, g->itexs, g->ibmps_length );
   // g->map.array = malloc ( map.length * sizeof *g->map.array );
@@ -284,8 +284,8 @@ generate_level ( game_t *g ) {
   // for ( int i = 0; i < map.length; ++i ) {
     // g->map.array[ i ] = map.array[ i ] == 1;
   // }
-  
-  if ( g->map_fromstart ) {  
+
+  if ( g->map_fromstart ) {
     g->map_fromstart = false;
     // place player
     g->camera.x = 1;
@@ -299,7 +299,7 @@ generate_level ( game_t *g ) {
       }
     }
   }
-  
+
 }
 
 
@@ -307,9 +307,9 @@ generate_level ( game_t *g ) {
 
 int
 setup ( game_t *g ) {
-  
+
   generate_level ( g );
-  
+
   g->collision_radius = 0.25;
 
   g->kb_look_speed = 0.003;
@@ -375,7 +375,7 @@ listen ( game_t *g ) {
           // SDL_SetRelativeMouseMode ( SDL_FALSE );
         // }
         g->is_running = false;
-        
+
         double values[ 8 ] = {
           g->camera.rotation,
           g->camera.directionx,
@@ -396,9 +396,9 @@ listen ( game_t *g ) {
           }
           fclose ( f );
         }
-        
-        
-        
+
+
+
       }
 
       else if ( event.key.keysym.sym == 'f' ) {
@@ -410,16 +410,16 @@ listen ( game_t *g ) {
             : g->window_flags
         );
       }
-      
+
       else if ( event.key.keysym.sym == '1' ) {
         g->spritex = g->camera.x;
         g->spritey = g->camera.y;
       }
-      
+
       else if ( event.key.keysym.sym == '2' ) {
         g->ibmps_index = ( g->ibmps_index + 1 ) % g->ibmps_length;
       }
-      
+
       else if ( event.key.keysym.sym == '3' ) {
         g->ibmps_index--;
         if ( g->ibmps_index < 0 ) g->ibmps_index = g->ibmps_length - 1;
@@ -430,7 +430,7 @@ listen ( game_t *g ) {
         g->map_fromstart = true;
         generate_level ( g );
       }
-      
+
       else if ( event.key.keysym.sym == '5' ) {
         g->map_index--;
         g->map_fromstart = true;
@@ -508,7 +508,7 @@ process ( game_t *g ) {
   } else if ( g->keys [ 'd' ] ) {
     const double new_camera_x = g->camera.x + g->camera.planex * +g->move_speed * g->elapsed;
     const double new_camera_y = g->camera.y + g->camera.planey * +g->move_speed * g->elapsed;
-    RC_test_collision 
+    RC_test_collision
       ( &g->map
       , g->collision_radius
       , new_camera_x
@@ -533,7 +533,7 @@ render ( game_t *g ) {
   RC_cast_surfaces ( &g->display, &g->map, &g->camera, g->itexs );
 
   RC_cast_walls ( &g->display, &g->map, &g->camera, g->itexs );
-  
+
   double mindepth = g->display.depthbuffer[ 0 ];
   double maxdepth = g->display.depthbuffer[ 0 ];
   for ( int i = 1; i < g->display.length; ++i ) {
@@ -543,10 +543,10 @@ render ( game_t *g ) {
   // char minmax_s [ 100 ];
   // sprintf ( minmax_s, "minmax_s: %f %f", mindepth, maxdepth );
   // RC_draw_text ( &g->display, &g->font, minmax_s, 0, CANVAS_HEIGHT - 12 * 2 );
-  
-  
-  
-  
+
+
+
+
   RC_cast_sprite ( &g->display, &g->camera, &g->textures[ 4 ], g->spritex, g->spritey );
 
 
